@@ -6,10 +6,10 @@ vim.o.tabstop = 4
 vim.o.softtabstop = 4
 vim.o.shiftwidth = 4
 vim.o.ignorecase = true
-vim.o.cursorline = true 
+vim.o.cursorline = true
 vim.o.colorcolumn = "150"
 -- vim.cmd("highlight ColorColumn ctermbg=238")
-vim.o.textwidth = "150"
+vim.o.textwidth = 150
 vim.g.mapleader = " "
 -- vim.o.mouse = "a"
 -- Don't hightlight search results
@@ -18,27 +18,20 @@ vim.api.nvim_set_keymap('n' , '<M-o>' , '<C-o>' , {noremap = true})
 
 
 --------------- neoscroll setup begin -----------------------------------
-require('neoscroll').setup({
-    hide_cursor          = true        , -- Hide cursor while scrolling
-    stop_eof             = true        , -- Stop at <EOF> when scrolling downwards
-    use_local_scrolloff  = false       , -- Use the local scope of scrolloff instead of the global scope
-    respect_scrolloff    = false       , -- Stop scrolling when the cursor reaches the scrolloff margin of the file
-    cursor_scrolls_alone = true        , -- The cursor will keep on scrolling even if the window cannot scroll further
-    easing_function      = "sine" , -- Default easing function
-    pre_hook             = nil         , -- Function to run before the scrolling animation starts
-    post_hook            = nil         , -- Function to run after the scrolling animation ends
-    performance_mode     = false       , -- Disable "Performance Mode" on all buffers.
-})
-local t = {}
--- Syntax: t[keys] = {function, {function arguments}}
-t['<M-u>'] = { 'scroll' , { '-vim.wo.scroll' , 'true'  , '100' }  }
-t['<M-d>'] = { 'scroll' , { 'vim.wo.scroll'  , 'true'  , '100' }  }
-t['<M-y>'] = { 'scroll' , { '-0.10'          , 'false' , '100' }  }
-t['<M-e>'] = { 'scroll' , { '0.10'           , 'false' , '100' }  }
-t['zt']    = { 'zt'     , { '150' } }
-t['zz']    = { 'zz'     , { '150' } }
-t['zb']    = { 'zb'     , { '150' } }
-require('neoscroll.config').set_mappings(t)
+neoscroll = require('neoscroll')
+local keymap = {
+    ["<M-u>"] = function() neoscroll.ctrl_u({ duration = 250 }) end;
+    ["<M-d>"] = function() neoscroll.ctrl_d({ duration = 250 }) end;
+    ["<M-y>"] = function() neoscroll.scroll(-0.1, { move_cursor=false; duration = 100 }) end;
+    ["<M-e>"] = function() neoscroll.scroll(0.1, { move_cursor=false; duration = 100 }) end;
+    ["zt"]    = function() neoscroll.zt({ half_win_duration = 250 }) end;
+    ["zz"]    = function() neoscroll.zz({ half_win_duration = 250 }) end;
+    ["zb"]    = function() neoscroll.zb({ half_win_duration = 250 }) end;
+}
+local modes = { 'n', 'v', 'x' }
+for key, func in pairs(keymap) do
+    vim.keymap.set(modes, key, func)
+end
 --------------- neoscroll setup end -----------------------------------
 
 --------------- fzf-lua setup begin -----------------------------------
@@ -78,106 +71,106 @@ require'fzf-lua'.setup
             delay          = 0,             -- delay(ms) displaying the preview
             -- prevents lag on fast scrolling
             winopts = {                       -- builtin previewer window options
-            number            = true,
-            relativenumber    = false,
-            cursorline        = true,
-            cursorlineopt     = 'both',
-            cursorcolumn      = false,
-            signcolumn        = 'no',
-            list              = false,
-            foldenable        = false,
-            foldmethod        = 'manual',
+                number            = true,
+                relativenumber    = false,
+                cursorline        = true,
+                cursorlineopt     = 'both',
+                cursorcolumn      = false,
+                signcolumn        = 'no',
+                list              = false,
+                foldenable        = false,
+                foldmethod        = 'manual',
+            },
+        } ,
+    },
+    keymap = {
+        builtin = {
+            -- neovim `:tmap` mapping for the fzf win
+            ["<M-d>"] = "preview-page-down",
+            ["<M-u>"] = "preview-page-up",
         },
-    } ,
-},
-keymap = {
-    builtin = {
-        -- neovim `:tmap` mapping for the fzf win
-        ["<M-d>"] = "preview-page-down",
-        ["<M-u>"] = "preview-page-up",
+        fzf = {
+            -- fzf '--bind=' options
+            ["alt-j"] = "down",
+            ["alt-k"] = "up",
+        }
     },
-    fzf = {
-        -- fzf '--bind=' options
-        ["alt-j"] = "down",
-        ["alt-k"] = "up",
-    }
-},
-action = {
-    -- These override the default tables completely
-    -- no need to set to `false` to disable an action
-    -- delete or modify is sufficient
+    action = {
+        -- These override the default tables completely
+        -- no need to set to `false` to disable an action
+        -- delete or modify is sufficient
+        files = {
+            -- providers that inherit these actions:
+            --   files, git_files, git_status, grep, lsp
+            --   oldfiles, quickfix, loclist, tags, btags
+            --   args
+            -- default action opens a single selection
+            -- or sends multiple selection to quickfix
+            -- replace the default action with the below
+            -- to open all files whether single or multiple
+            -- ["default"]     = actions.file_edit,
+            ["default"]     = actions.file_edit_or_qf,
+            ["ctrl-s"]      = actions.file_split,
+            ["ctrl-v"]      = actions.file_vsplit,
+            ["ctrl-t"]      = actions.file_tabedit,
+        },
+        buffers = {
+            -- providers that inherit these actions:
+            --   buffers, tabs, lines, blines
+            ["default"]     = actions.buf_edit,
+            ["ctrl-s"]      = actions.buf_split,
+            ["ctrl-v"]      = actions.buf_vsplit,
+            ["ctrl-t"]      = actions.buf_tabedit,
+        },
+    },
     files = {
-        -- providers that inherit these actions:
-        --   files, git_files, git_status, grep, lsp
-        --   oldfiles, quickfix, loclist, tags, btags
-        --   args
-        -- default action opens a single selection
-        -- or sends multiple selection to quickfix
-        -- replace the default action with the below
-        -- to open all files whether single or multiple
-        -- ["default"]     = actions.file_edit,
-        ["default"]     = actions.file_edit_or_qf,
-        ["ctrl-s"]      = actions.file_split,
-        ["ctrl-v"]      = actions.file_vsplit,
-        ["ctrl-t"]      = actions.file_tabedit,
+        vim.api.nvim_set_keymap('n', '<M-f>', "<cmd>lua require('fzf-lua').files()<CR>", { noremap = true, silent = true }),
+        prompt = 'Files> ',
     },
+    grep_cword = {
+        vim.api.nvim_set_keymap('n', '<M-g>', "<cmd>lua require('fzf-lua').grep_cword()<CR>", { noremap = true, silent = true }),
+        glob_flag    = "--iglob",
+        multiprocess = true,
+        rg_opts      = "--sort none -U --mmap --hidden -j9 --column --line-number --no-heading --color=auto --smart-case  -g '!{.git,node_modules}/*'",
+    },
+    grep_visual = {
+        vim.api.nvim_set_keymap('v', '<M-g>', "<cmd>lua require('fzf-lua').grep_visual()<CR>", { noremap = true, silent = true }),
+        multiprocess = true,
+        rg_opts      = "--sort none -U --mmap --hidden -j9 --column --line-number --no-heading --color=auto --smart-case  -g '!{.git,node_modules}/*'",
+    },
+    tags_grep_cword = {
+        vim.api.nvim_set_keymap('n', '<M-]>', "<cmd>:lua require('fzf-lua').tags_grep_cword()<CR>", { noremap = true, silent = true }),
+        prompt       = 'Tags❯ ',
+        ctags_file   = "tags",
+        multiprocess = true,
+        -- 'tags_live_grep' options, `rg` prioritizes over `grep`
+        rg_opts      = "--no-heading --color=auto --smart-case",
+        grep_opts    = "--color=auto --perl-regexp",
+        no_header    = false,    -- hide grep|cwd header?
+        no_header_i  = false,    -- hide interactive header?
+    },
+    btags = {
+        vim.api.nvim_set_keymap('n', '<F2>', "<cmd>:lua require('fzf-lua').btags()<CR>", { noremap = true, silent = true }),
+        prompt       = 'BTags❯ ',
+        ctags_file   = "tags",
+        rg_opts      = "--sort none -U --mmap -j9 --no-heading --color=auto --smart-case  -g '!{.git,node_modules}/*'",
+        grep_opts    = "--color=auto --perl-regexp",
+        multiprocess = true,
+        fzf_opts     = { ["--info"] = "default", ["--tiebreak"] = "begin" },
+    } ,
     buffers = {
-        -- providers that inherit these actions:
-        --   buffers, tabs, lines, blines
-        ["default"]     = actions.buf_edit,
-        ["ctrl-s"]      = actions.buf_split,
-        ["ctrl-v"]      = actions.buf_vsplit,
-        ["ctrl-t"]      = actions.buf_tabedit,
+        vim.api.nvim_set_keymap('n', '<M-b>', "<cmd>:lua require('fzf-lua').buffers()<CR>", { noremap = true, silent = true }),
+        prompt        = 'Buffers❯ ',
+        sort_lastused = true,         -- sort buffers() by last used
     },
-},
-files = {
-    vim.api.nvim_set_keymap('n', '<M-f>', "<cmd>lua require('fzf-lua').files()<CR>", { noremap = true, silent = true }),
-    prompt = 'Files> ',
-},
-grep_cword = {
-    vim.api.nvim_set_keymap('n', '<M-g>', "<cmd>lua require('fzf-lua').grep_cword()<CR>", { noremap = true, silent = true }),
-    glob_flag    = "--iglob",
-    multiprocess = true,
-    rg_opts      = "--sort none -U --mmap --hidden -j9 --column --line-number --no-heading --color=auto --smart-case  -g '!{.git,node_modules}/*'",
-},
-grep_visual = {
-    vim.api.nvim_set_keymap('v', '<M-g>', "<cmd>lua require('fzf-lua').grep_visual()<CR>", { noremap = true, silent = true }),
-    multiprocess = true,
-    rg_opts      = "--sort none -U --mmap --hidden -j9 --column --line-number --no-heading --color=auto --smart-case  -g '!{.git,node_modules}/*'",
-},
-tags_grep_cword = {
-    vim.api.nvim_set_keymap('n', '<M-]>', "<cmd>:lua require('fzf-lua').tags_grep_cword()<CR>", { noremap = true, silent = true }),
-    prompt       = 'Tags❯ ',
-    ctags_file   = "tags",
-    multiprocess = true,
-    -- 'tags_live_grep' options, `rg` prioritizes over `grep`
-    rg_opts      = "--no-heading --color=auto --smart-case",
-    grep_opts    = "--color=auto --perl-regexp",
-    no_header    = false,    -- hide grep|cwd header?
-    no_header_i  = false,    -- hide interactive header?
-},
-btags = {
-    vim.api.nvim_set_keymap('n', '<F2>', "<cmd>:lua require('fzf-lua').btags()<CR>", { noremap = true, silent = true }),
-    prompt       = 'BTags❯ ',
-    ctags_file   = "tags",
-    rg_opts      = "--sort none -U --mmap -j9 --no-heading --color=auto --smart-case  -g '!{.git,node_modules}/*'",
-    grep_opts    = "--color=auto --perl-regexp",
-    multiprocess = true,
-    fzf_opts     = { ["--info"] = "default", ["--tiebreak"] = "begin" },
-} ,
-buffers = {
-    vim.api.nvim_set_keymap('n', '<M-b>', "<cmd>:lua require('fzf-lua').buffers()<CR>", { noremap = true, silent = true }),
-    prompt        = 'Buffers❯ ',
-    sort_lastused = true,         -- sort buffers() by last used
-},
-previewers = {
-    bat = {
-        cmd    = "bat",
-        args   = "--style=numbers,changes --color auto --line-range :500 {}",
-        theme  = 'Coldark-Dark', -- bat preview theme (bat --list-themes)
-        config = nil,            -- nil uses $BAT_CONFIG_PATH
+    previewers = {
+        bat = {
+            cmd    = "bat",
+            args   = "--style=numbers,changes --color auto --line-range :500 {}",
+            theme  = 'Coldark-Dark', -- bat preview theme (bat --list-themes)
+            config = nil,            -- nil uses $BAT_CONFIG_PATH
+        },
     },
-},
 }
 --------------- fzf-lua setup end -----------------------------------
 
@@ -329,65 +322,66 @@ hooks.register(hooks.type.HIGHLIGHT_SETUP, function()
     vim.api.nvim_set_hl(0, "RainbowCyan",   { fg = "#56B6C2" })
 end)
 vim.g.rainbow_delimiters = { highlight = highlight }
-require("ibl").setup { 
-    scope = { 
+require("ibl").setup {
+    scope = {
         enabled    = true,
         show_start = false,
         show_end   = false,
         priority   = 500,
         highlight  = highlight
-    } 
+    }
 }
 hooks.register(hooks.type.SCOPE_HIGHLIGHT, hooks.builtin.scope_highlight_from_extmark)
 -------------- indent-blankline end ------------------------
 
 -------------- nvim-treesitter begin --------------------------
 require'nvim-treesitter.configs'.setup {
-  -- A list of parser names, or "all" (the five listed parsers should always be installed)
-  ensure_installed = { "cpp","python","make","c", "lua", "vim", "vimdoc", "query" },
-  -- Install parsers synchronously (only applied to `ensure_installed`)
-  sync_install = false,
-  -- Automatically install missing parsers when entering buffer
-  -- Recommendation: set to false if you don't have `tree-sitter` CLI installed locally
-  auto_install = true,
-  -- List of parsers to ignore installing (or "all")
-  ignore_install = { "javascript" },
-  ---- If you need to change the installation directory of the parsers (see -> Advanced Setup)
-  -- parser_install_dir = "/some/path/to/store/parsers", -- Remember to run vim.opt.runtimepath:append("/some/path/to/store/parsers")!
-  highlight = {
-    enable = true,
-    -- NOTE: these are the names of the parsers and not the filetype. (for example if you want to
-    -- disable highlighting for the `tex` filetype, you need to include `latex` in this list as this is
-    -- the name of the parser)
-    -- list of language that will be disabled
-    disable = {"c", "rust","lua","cpp"},
-    -- Or use a function for more flexibility, e.g. to disable slow treesitter highlight for large files
-    disable = function(lang, buf)
-        local max_filesize = 100 * 1024 -- 100 KB
-        local ok, stats = pcall(vim.loop.fs_stat, vim.api.nvim_buf_get_name(buf))
-        if ok and stats and stats.size > max_filesize then
-            return true
-        end
-    end,
-    -- Setting this to true will run `:h syntax` and tree-sitter at the same time.
-    -- Set this to `true` if you depend on 'syntax' being enabled (like for indentation).
-    -- Using this option may slow down your editor, and you may see some duplicate highlights.
-    -- Instead of true it can also be a list of languages
-    additional_vim_regex_highlighting = false,
-  },
-  incremental_selection = {
-      enable = true,
-      keymaps = {
-          init_selection = '<CR>',
-          node_incremental = '<CR>',
-          node_decremental = '<BS>',
-          scope_incremental = '<TAB>'
-      },
-  },
+    -- A list of parser names, or "all" (the five listed parsers should always be installed)
+    ensure_installed = { "cpp","python","make","c", "lua", "vim", "vimdoc", "query" },
+    -- Install parsers synchronously (only applied to `ensure_installed`)
+    sync_install = false,
+    -- Automatically install missing parsers when entering buffer
+    -- Recommendation: set to false if you don't have `tree-sitter` CLI installed locally
+    auto_install = true,
+    -- List of parsers to ignore installing (or "all")
+    ignore_install = { "javascript" },
+    ---- If you need to change the installation directory of the parsers (see -> Advanced Setup)
+    -- parser_install_dir = "/some/path/to/store/parsers", -- Remember to run vim.opt.runtimepath:append("/some/path/to/store/parsers")!
+    highlight = {
+        enable = true,
+        -- NOTE: these are the names of the parsers and not the filetype. (for example if you want to
+        -- disable highlighting for the `tex` filetype, you need to include `latex` in this list as this is
+        -- the name of the parser)
+        -- list of language that will be disabled
+        disable = {"c", "rust","lua","cpp"},
+        -- Or use a function for more flexibility, e.g. to disable slow treesitter highlight for large files
+        disable = function(lang, buf)
+            local max_filesize = 100 * 1024 -- 100 KB
+            local ok, stats = pcall(vim.loop.fs_stat, vim.api.nvim_buf_get_name(buf))
+            if ok and stats and stats.size > max_filesize then
+                return true
+            end
+        end,
+        -- Setting this to true will run `:h syntax` and tree-sitter at the same time.
+        -- Set this to `true` if you depend on 'syntax' being enabled (like for indentation).
+        -- Using this option may slow down your editor, and you may see some duplicate highlights.
+        -- Instead of true it can also be a list of languages
+        additional_vim_regex_highlighting = false,
+    },
+    incremental_selection = {
+        enable = true,
+        keymaps = {
+            init_selection = '<CR>',
+            node_incremental = '<CR>',
+            node_decremental = '<BS>',
+            scope_incremental = '<TAB>'
+        },
+    },
 }
----------------- nvim-treesitter end --------------------------
 
-return require('packer').startup(function()
+
+---------------- nvim-treesitter end --------------------------
+return require('packer').startup(function(use)
     use { 'wbthomason/packer.nvim'      }
     use { 'karb94/neoscroll.nvim'       }
     use { 'roxma/vim-tmux-clipboard'    }
