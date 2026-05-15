@@ -20,4 +20,5 @@ Main plugins include `packer.nvim`, `coc.nvim`, `fzf-lua`, `hop.nvim`, `neoscrol
 ## Notes
 
 - `vim/init.vim` is kept as the older Vimscript configuration.
+- `vim/clang-format` mirrors the `.clang-format` used in `Zero-Jitter-Forge` for C/C++ formatting defaults.
 - Validate shell helpers with `bash -n` and Neovim Lua files with `luac -p`.
