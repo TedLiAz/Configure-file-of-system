@@ -21,9 +21,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SKILLS_DIR="$REPO_ROOT/skills"
 
-GEMINI_SKILLS="$HOME/.gemini/config/skills"
-AGENTS_SKILLS="$HOME/.agents/skills"
-CODEBUDDY_SKILLS="$HOME/.codebuddy/skills"
+# Determine base home directory (support Linux, macOS, WSL, and Windows Git Bash/MSYS2)
+if command -v cygpath >/dev/null 2>&1 && [ -n "${USERPROFILE:-}" ]; then
+    BASE_HOME="$(cygpath -u "$USERPROFILE")"
+else
+    BASE_HOME="$HOME"
+fi
+
+GEMINI_SKILLS="$BASE_HOME/.gemini/config/skills"
+AGENTS_SKILLS="$BASE_HOME/.agents/skills"
+CODEBUDDY_SKILLS="$BASE_HOME/.codebuddy/skills"
 
 FORCE_CODEBUDDY=0
 FORCE_GEMINI=0
