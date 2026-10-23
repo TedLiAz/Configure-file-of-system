@@ -1,7 +1,19 @@
 #!/usr/bin/env bash
 #
-# sync.sh - Synchronize custom skills from this repository to local agent configurations.
-# Works across Linux and macOS.
+# sync.sh - Synchronize custom skills from this repository to local AI agent configurations.
+#
+# Supported Environments:
+#   - CodeBuddy:       ~/.codebuddy/skills
+#   - Antigravity:     ~/.gemini/config/skills
+#   - Agents / Claude: ~/.agents/skills
+#
+# Usage:
+#   ./sync.sh              # Auto-detects installed AI agents, or prepares all if none detected
+#   ./sync.sh --codebuddy  # Force sync to CodeBuddy (~/.codebuddy/skills)
+#   ./sync.sh --gemini     # Force sync to Antigravity (~/.gemini/config/skills)
+#   ./sync.sh --agents     # Force sync to Agents (~/.agents/skills)
+#   ./sync.sh --all        # Force sync to all supported environments
+#
 
 set -euo pipefail
 
@@ -9,41 +21,125 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SKILLS_DIR="$REPO_ROOT/skills"
 
-# Determine target directories
-# 1. Antigravity global config path: ~/.gemini/config/skills
-# 2. General agent config path: ~/.agents/skills
-TARGET_DIRS=()
-
 GEMINI_SKILLS="$HOME/.gemini/config/skills"
 AGENTS_SKILLS="$HOME/.agents/skills"
+CODEBUDDY_SKILLS="$HOME/.codebuddy/skills"
 
-# If ~/.gemini/config/skills is a symlink, resolve canonical target to avoid duplicate links
-if [ -L "$GEMINI_SKILLS" ]; then
-    CANONICAL_TARGET="$(readlink -f "$GEMINI_SKILLS")"
-    TARGET_DIRS+=("$CANONICAL_TARGET")
-elif [ -d "$GEMINI_SKILLS" ]; then
-    TARGET_DIRS+=("$GEMINI_SKILLS")
-fi
+FORCE_CODEBUDDY=0
+FORCE_GEMINI=0
+FORCE_AGENTS=0
+FORCE_ALL=0
 
-if [ -d "$AGENTS_SKILLS" ]; then
-    CANONICAL_AGENTS="$(readlink -f "$AGENTS_SKILLS")"
-    # Only add if not already in TARGET_DIRS
-    ALREADY_ADDED=0
-    for dir in "${TARGET_DIRS[@]}"; do
-        if [ "$dir" = "$CANONICAL_AGENTS" ]; then
-            ALREADY_ADDED=1
-            break
+print_help() {
+    cat <<EOF
+Usage: ./skills/sync.sh [OPTIONS]
+
+Synchronize skills from this repository to AI agent configuration directories.
+
+Options:
+  -c, --codebuddy    Explicitly sync to CodeBuddy (~/.codebuddy/skills)
+  -g, --gemini       Explicitly sync to Antigravity (~/.gemini/config/skills)
+      --agents       Explicitly sync to Agents / Claude (~/.agents/skills)
+  -a, --all          Sync to all supported environments (CodeBuddy, Antigravity, Agents)
+  -h, --help         Show this help message
+
+If no option is specified, the script automatically detects existing agent directories
+on your machine. If none are detected, it prepares all standard locations.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -c|--codebuddy)
+            FORCE_CODEBUDDY=1
+            shift
+            ;;
+        -g|--gemini|--antigravity)
+            FORCE_GEMINI=1
+            shift
+            ;;
+        --agents)
+            FORCE_AGENTS=1
+            shift
+            ;;
+        -a|--all)
+            FORCE_ALL=1
+            shift
+            ;;
+        -h|--help)
+            print_help
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            print_help
+            exit 1
+            ;;
+    esac
+done
+
+TARGET_DIRS=()
+
+add_target_dir() {
+    local raw_dir="$1"
+    mkdir -p "$raw_dir"
+
+    local canonical
+    if command -v realpath >/dev/null 2>&1; then
+        canonical="$(realpath "$raw_dir")"
+    else
+        canonical="$(readlink -f "$raw_dir" 2>/dev/null || echo "$raw_dir")"
+    fi
+
+    for existing in "${TARGET_DIRS[@]}"; do
+        if [ "$existing" = "$canonical" ]; then
+            return 0
         fi
     done
-    if [ "$ALREADY_ADDED" -eq 0 ]; then
-        TARGET_DIRS+=("$CANONICAL_AGENTS")
+    TARGET_DIRS+=("$canonical")
+}
+
+# 1. Handle explicit flags
+if [ "$FORCE_ALL" -eq 1 ]; then
+    add_target_dir "$CODEBUDDY_SKILLS"
+    add_target_dir "$GEMINI_SKILLS"
+    add_target_dir "$AGENTS_SKILLS"
+else
+    if [ "$FORCE_CODEBUDDY" -eq 1 ]; then
+        add_target_dir "$CODEBUDDY_SKILLS"
+    fi
+    if [ "$FORCE_GEMINI" -eq 1 ]; then
+        add_target_dir "$GEMINI_SKILLS"
+    fi
+    if [ "$FORCE_AGENTS" -eq 1 ]; then
+        add_target_dir "$AGENTS_SKILLS"
     fi
 fi
 
-# If neither directory exists, create standard Antigravity skills directory
+# 2. If no explicit targets were specified, perform auto-detection
 if [ ${#TARGET_DIRS[@]} -eq 0 ]; then
-    mkdir -p "$GEMINI_SKILLS"
-    TARGET_DIRS+=("$GEMINI_SKILLS")
+    # Detect CodeBuddy (directory or CLI command)
+    if [ -d "$HOME/.codebuddy" ] || [ -d "$CODEBUDDY_SKILLS" ] || command -v codebuddy >/dev/null 2>&1; then
+        add_target_dir "$CODEBUDDY_SKILLS"
+    fi
+
+    # Detect Antigravity / Gemini
+    if [ -d "$HOME/.gemini/config" ] || [ -d "$GEMINI_SKILLS" ]; then
+        add_target_dir "$GEMINI_SKILLS"
+    fi
+
+    # Detect Agents / Claude
+    if [ -d "$HOME/.agents" ] || [ -d "$AGENTS_SKILLS" ]; then
+        add_target_dir "$AGENTS_SKILLS"
+    fi
+
+    # Fallback: if no environments were detected at all on a fresh machine, prepare all standard targets
+    if [ ${#TARGET_DIRS[@]} -eq 0 ]; then
+        echo "[i] No existing AI agent directories found. Preparing standard targets..."
+        add_target_dir "$CODEBUDDY_SKILLS"
+        add_target_dir "$GEMINI_SKILLS"
+        add_target_dir "$AGENTS_SKILLS"
+    fi
 fi
 
 echo "=================================================="
@@ -87,4 +183,4 @@ done
 
 echo "--------------------------------------------------"
 echo "Done! Successfully synchronized $SYNCED_COUNT skill(s)."
-echo "Antigravity and supported AI agents will automatically discover them."
+echo "Supported environments (CodeBuddy / Antigravity / Agents) will automatically discover them."
